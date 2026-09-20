@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/analysis-packet-v1.schema.json",
+  "title": "AnalysisPacketV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "packet_id", "packet_sha256", "snapshot_id",
+    "snapshot_sha256", "generated_at", "artifact_privacy_mode",
+    "analysis_execution_mode", "profile", "platform", "content_read",
+    "hash_mode", "canonical_tree_logical_size_bytes",
+    "canonical_tree_allocated_size_bytes", "reclaimable_estimate_bytes",
+    "coverage_summary", "limitations", "top_objects", "long_tail",
+    "truncated"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "packet_id": {"type": "string"},
+    "packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "snapshot_id": {"type": "string"},
+    "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "artifact_privacy_mode": {"enum": ["local_full", "share_safe"]},
+    "analysis_execution_mode": {
+      "enum": ["none", "local_only", "cloud_metadata_minimized"]
+    },
+    "profile": {"const": "inventory_metadata"},
+    "platform": {"type": "string"},
+    "content_read": {"const": false},
+    "hash_mode": {"const": "none"},
+    "canonical_tree_logical_size_bytes": {"type": "integer", "minimum": 0},
+    "canonical_tree_allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_entries", "collected_entries", "skipped_entries", "permission_gap_count", "cancelled"],
+      "properties": {
+        "requested_entries": {"type": "integer", "minimum": 0},
+        "collected_entries": {"type": "integer", "minimum": 0},
+        "skipped_entries": {"type": "integer", "minimum": 0},
+        "permission_gap_count": {"type": "integer", "minimum": 0},
+        "cancelled": {"type": "boolean"}
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "top_objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "object_id", "evidence_ids", "object_type", "display_name",
+          "location", "name_length", "logical_size_bytes",
+          "allocated_size_bytes", "reclaimable_estimate_bytes", "rule_hints"
+        ],
+        "properties": {
+          "object_id": {"type": "string"},
+          "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "object_type": {"type": "string"},
+          "display_name": {"type": "string"},
+          "location": {"type": ["string", "null"]},
+          "name_length": {"type": "integer", "minimum": 0},
+          "logical_size_bytes": {"type": "integer", "minimum": 0},
+          "allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+          "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0},
+          "rule_hints": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "long_tail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_count", "logical_size_bytes"],
+      "properties": {
+        "object_count": {"type": "integer", "minimum": 0},
+        "logical_size_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "truncated": {"type": "boolean"}
+  }
+}

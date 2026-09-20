@@ -1,0 +1,28 @@
+# Local dependencies and generated output
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.data/
+coverage/
+ui/node_modules/
+ui/dist/
+ui/dist-desktop/
+desktop/target/
+desktop/gen/
+desktop/resources/*.json
+fixtures/generated/
+output/
+.DS_Store
+.playwright-cli/
+.playwright-mcp/
+.env
+.env.*
+!.env.example
+
+# Private working notes and local runtime records
+MEMORY.md
+memory/
+docs/handoffs/
+docs/evidence/
+docs/tasks/

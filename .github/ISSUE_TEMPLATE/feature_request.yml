@@ -1,0 +1,18 @@
+name: 功能建议 / Feature request
+description: 描述具体的文件整理问题。
+title: "[Idea] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题？
+      description: 你在什么整理场景遇到困难？请用无敏感信息的样例说明。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期望的软件行为
+      description: 应怎样解释、分类或帮助你作决定？
+    validations:
+      required: true

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="574" viewBox="0 0 1280 574" role="img" aria-labelledby="title desc">
+<title id="title">每条建议，给出理由，也留下决定权</title>
+<desc id="desc">虚构 Atlas 安装包案例：同目录存在 2.4 版，建议核对 2.3 版是否还用于回退，再决定保留或加入不执行的清理预览。这是流程示意，不是运行截图。</desc>
+<defs><style>
+text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;fill:#23392d}
+.title{font-size:34px;font-weight:600}
+.label{font-size:18px;fill:#607466}
+.body{font-size:21px}
+.strong{font-size:23px;font-weight:600}
+</style></defs>
+<rect x="1" y="1" width="1278" height="572" rx="24" fill="#fffefa" stroke="#dfe5d9"/>
+<text class="title" x="52" y="70">每条建议，给出理由，也留下决定权。</text>
+<text class="label" x="52" y="106">同一份文件：从“占了多少空间”，到“接下来怎么处理”。</text>
+<rect x="52" y="150" width="371" height="334" rx="16" fill="#f0f4eb"/>
+<text class="label" x="82" y="192">文件线索</text>
+<path d="M89 218h43l18 18v50H89z" fill="#fffefa" stroke="#6f8b76" stroke-width="2"/>
+<path d="M132 218v18h18m-48 26h35m-35 11h24" fill="none" stroke="#6f8b76" stroke-width="2"/>
+<text class="strong" x="82" y="333">Atlas-2.3.dmg</text>
+<text class="body" x="82" y="371">Mac 软件分发镜像</text>
+<text class="label" x="82" y="416">名称 · 类型 · 版本 · 大小 · 日期</text>
+<text class="label" x="82" y="451">未读取正文，未检查安装状态</text>
+<path d="M447 316h40m-9-9 9 9-9 9" fill="none" stroke="#6f8b76" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text class="label" x="528" y="175">建议清理 / 待你核对</text>
+<text class="strong" x="528" y="215">发现较新版本，可核对旧安装包</text>
+<path d="M528 240h695" stroke="#e3e8de"/>
+<text class="label" x="528" y="277">判断依据</text>
+<text class="body" x="657" y="277">同目录存在 Atlas-2.4.dmg</text>
+<text class="label" x="528" y="322">还需确认</text>
+<text class="body" x="657" y="322">旧版本是否仍用于回退或兼容？</text>
+<text class="label" x="528" y="367">下一步</text>
+<text class="body" x="657" y="367">先保留较新版本，再决定如何处理旧包。</text>
+<rect x="528" y="413" width="163" height="48" rx="10" fill="#edf2e7" stroke="#d5dfcf"/>
+<text x="609" y="444" text-anchor="middle" font-size="19">记为保留</text>
+<rect x="707" y="413" width="195" height="48" rx="10" fill="#346c51"/>
+<text x="805" y="444" text-anchor="middle" font-size="19" style="fill:#fffefa">加入清理预览</text>
+<text class="label" x="528" y="491">只记录本轮选择，文件保持原位。</text>
+<text x="52" y="544" font-size="15" fill="#607466">虚构文件 · 建议流程示意 · 非运行截图</text>
+<text x="1224" y="544" text-anchor="end" font-size="15" fill="#607466">当前预览没有执行按钮</text>
+</svg>

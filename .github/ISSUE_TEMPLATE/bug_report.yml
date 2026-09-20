@@ -1,0 +1,37 @@
+name: 问题反馈 / Bug report
+description: 提交可复现的问题，请使用虚构文件与路径。
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: 请勿上传私人文件、完整下载清单、凭据或未经处理的截图。安全漏洞请使用 Security 页的私密报告。
+  - type: input
+    id: environment
+    attributes:
+      label: 系统与版本
+      description: macOS / Windows 版本、CPU 架构、项目提交版本。
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 使用入口
+      options:
+        - 原生 Downloads 只读预览
+        - 原生 fixture 平台实验
+        - Core / Web 开发工作台
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 使用自己构造的文件名、类型与时间线索，说明如何复现。
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 期望与实际结果
+    validations:
+      required: true

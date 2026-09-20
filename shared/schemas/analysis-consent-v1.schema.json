@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/analysis-consent-v1.schema.json",
+  "title": "AnalysisConsentV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "consent_receipt_id",
+    "client_action_id",
+    "confirmed",
+    "snapshot_id",
+    "snapshot_sha256",
+    "packet_id",
+    "packet_sha256",
+    "packet_bytes",
+    "artifact_privacy_mode",
+    "analysis_execution_mode",
+    "provider",
+    "model",
+    "prompt_version",
+    "consent_schema_version",
+    "analysis_schema_version",
+    "disclosure_version",
+    "budget",
+    "cost_basis"
+  ],
+  "properties": {
+    "consent_receipt_id": {
+      "type": "string",
+      "pattern": "^consent_receipt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "client_action_id": {
+      "type": "string",
+      "pattern": "^client_action_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "confirmed": {"const": true},
+    "snapshot_id": {"type": "string"},
+    "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "packet_id": {"type": "string"},
+    "packet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "packet_bytes": {"type": "integer", "minimum": 1},
+    "artifact_privacy_mode": {"const": "share_safe"},
+    "analysis_execution_mode": {"const": "cloud_metadata_minimized"},
+    "provider": {"const": "fake"},
+    "model": {"const": "fixture-analyst-v1"},
+    "prompt_version": {"const": "report-analysis-v1"},
+    "consent_schema_version": {"const": "1.0"},
+    "analysis_schema_version": {"const": "ai-analysis-v1"},
+    "disclosure_version": {"const": "synthetic-disclosure-v1"},
+    "budget": {"$ref": "#/$defs/AnalysisBudgetV1"},
+    "cost_basis": {"const": "synthetic_zero_external_cost"}
+  },
+  "$defs": {
+    "AnalysisBudgetV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_provider_calls",
+        "max_schema_retries",
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_packet_bytes",
+        "timeout_ms",
+        "max_estimated_cost"
+      ],
+      "properties": {
+        "max_provider_calls": {
+          "const": 1,
+          "description": "Primary provider calls only; schema retries are budgeted separately."
+        },
+        "max_schema_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Additional schema-repair attempts; total attempts are at most two."
+        },
+        "max_input_tokens": {"type": "integer", "minimum": 1, "maximum": 12000},
+        "max_output_tokens": {"type": "integer", "minimum": 1, "maximum": 2500},
+        "max_packet_bytes": {"type": "integer", "minimum": 1, "maximum": 256000},
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 90000,
+          "description": "Cooperative wall-clock deadline enforced by the offline fake provider; not evidence of a real-provider hard timeout."
+        },
+        "max_estimated_cost": {"const": 0}
+      }
+    }
+  }
+}

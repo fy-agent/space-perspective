@@ -1,0 +1,113 @@
+name: Windows acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-p0:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.10.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install locked Python dependencies
+        run: uv sync --locked
+      - name: Install locked UI dependencies
+        run: npm ci --prefix ui
+      - name: Run complete P0 gate
+        run: uv run python scripts/check_all.py
+      - name: Run native Windows acceptance
+        run: uv run python scripts/windows_acceptance.py --evidence output/windows-acceptance.json
+      - name: Show structured evidence
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path output/windows-acceptance.json) {
+            Get-Content output/windows-acceptance.json
+          } else {
+            Write-Error "Windows evidence file was not generated."
+          }
+      - name: Upload structured evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: windows-acceptance-evidence
+          path: output/windows-acceptance.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-report:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.10.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install locked Python dependencies
+        run: uv sync --locked
+      - name: Install locked UI dependencies
+        run: npm ci --prefix ui
+      - name: Run Windows report contract tests
+        run: uv run pytest core/tests/test_windows_metadata_adapter.py core/tests/test_iteration6_windows_acceptance.py core/tests/test_inventory_collector.py tests/test_windows_acceptance_contract.py -q
+      - name: Validate OpenAPI contract
+        run: uv run python scripts/check_openapi.py
+      - name: Run security checks
+        run: uv run python scripts/security_check.py
+      - name: Run UI tests
+        run: npm --prefix ui test -- --run
+      - name: Build UI
+        run: npm --prefix ui run build
+      - name: Run Iteration 6 native fixture acceptance
+        run: >
+          uv run python scripts/iteration6_windows_office_acceptance.py
+          --evidence output/iteration6/windows-ci-receipt.json
+          --artifacts output/iteration6/artifacts
+          --commit-sha $env:GITHUB_SHA
+      - name: Show sanitized Iteration 6 receipt
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path output/iteration6/windows-ci-receipt.json) {
+            Get-Content output/iteration6/windows-ci-receipt.json
+          } else {
+            Write-Error "Iteration 6 receipt was not generated."
+          }
+      - name: Upload Iteration 6 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iteration6-windows-report-evidence
+          path: |
+            output/iteration6/windows-ci-receipt.json
+            output/iteration6/artifacts/空间透视-Windows-share-safe.xlsx
+          if-no-files-found: warn
+          retention-days: 14

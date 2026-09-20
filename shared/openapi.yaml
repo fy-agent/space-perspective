@@ -1,0 +1,2648 @@
+openapi: 3.0.3
+info:
+  title: Local AI Data Butler MVP API
+  version: 0.1.0
+  description: >
+    First-version local API contract for the Data Butler MVP. This contract
+    covers read-only scanning, local asset indexing, exact duplicate groups,
+    file-intelligence overview, explainable suggestions, operation preview,
+    quarantine execution, receipts, undo, and mock provider analysis.
+    It does not expose permanent delete, real cloud upload, WeChat chat
+    database parsing, face recognition, payment, or desktop-shell APIs.
+servers:
+  - url: http://127.0.0.1:8765
+    description: Local Core service
+tags:
+  - name: health
+  - name: scan
+  - name: assets
+  - name: fileintel
+  - name: dups
+  - name: suggestions
+  - name: operations
+  - name: quarantine
+  - name: providers
+  - name: inventory
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Check local Core service health
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /scan:
+    post:
+      tags: [scan]
+      summary: Start a read-only scan for authorized local directories
+      operationId: createScan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanRequest"
+      responses:
+        "202":
+          description: Scan session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanSession"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /scan/{scan_session_id}:
+    get:
+      tags: [scan]
+      summary: Get scan session state
+      operationId: getScanSession
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionId"
+      responses:
+        "200":
+          description: Scan session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanSession"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /scan/{scan_session_id}/stream:
+    get:
+      tags: [scan]
+      summary: Stream scan progress events
+      description: >
+        Server-Sent Events endpoint. Each event uses the SSE format
+        `event: scan_event` and `data: {json}`. The JSON payload MUST match
+        the ScanEvent schema. This endpoint is read-only and MUST NOT change
+        files.
+      operationId: streamScanEvents
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionId"
+      responses:
+        "200":
+          description: SSE stream of ScanEvent payloads
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                progress:
+                  summary: Scan progress event
+                  value: |
+                    event: scan_event
+                    data: {"event_id":"evt_001","scan_session_id":"scan_001","type":"progress","occurred_at":"2026-06-17T10:00:00Z","current_path":"C:\\Users\\me\\Downloads","files_seen":120,"files_indexed":118,"files_skipped":2}
+        default:
+          $ref: "#/components/responses/Error"
+
+  /scan/{scan_session_id}/cancel:
+    post:
+      tags: [scan]
+      summary: Cancel a running scan
+      operationId: cancelScan
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionId"
+      responses:
+        "200":
+          description: Updated scan session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanSession"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /assets:
+    get:
+      tags: [assets]
+      summary: List indexed assets
+      operationId: listAssets
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionIdQuery"
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/AssetCategory"
+        - name: source_hint
+          in: query
+          schema:
+            $ref: "#/components/schemas/SourceHint"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/AssetStatus"
+        - name: min_size_bytes
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Asset list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Asset"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /assets/{asset_id}:
+    get:
+      tags: [assets]
+      summary: Get asset detail
+      operationId: getAsset
+      parameters:
+        - $ref: "#/components/parameters/AssetId"
+      responses:
+        "200":
+          description: Asset detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [asset, metadata]
+                properties:
+                  asset:
+                    $ref: "#/components/schemas/Asset"
+                  metadata:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AssetMetadata"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /fileintel/overview:
+    get:
+      tags: [fileintel]
+      summary: Get local file-intelligence overview
+      operationId: getFileIntelOverview
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionIdQuery"
+      responses:
+        "200":
+          description: File intelligence overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileIntelOverview"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /dups:
+    get:
+      tags: [dups]
+      summary: List exact duplicate groups
+      operationId: listDuplicateGroups
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionIdQuery"
+        - name: min_reclaimable_bytes
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Duplicate groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DuplicateGroup"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /suggestions:
+    get:
+      tags: [suggestions]
+      summary: List explainable suggestions
+      operationId: listSuggestions
+      parameters:
+        - $ref: "#/components/parameters/ScanSessionIdQuery"
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/SuggestionCategory"
+        - name: risk_level
+          in: query
+          schema:
+            $ref: "#/components/schemas/RiskLevel"
+        - name: default_selected
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Suggestion"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /operations/preview:
+    post:
+      tags: [operations]
+      summary: Create an operation plan and preview
+      description: >
+        Frontend MUST request a preview before execution. The request uses
+        asset_ids or suggestion_ids, never filesystem paths as executable
+        authority.
+      operationId: createOperationPreview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationPreviewRequest"
+      responses:
+        "200":
+          description: Operation plan preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationPlan"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /operations/execute:
+    post:
+      tags: [operations]
+      summary: Execute a confirmed operation plan
+      description: >
+        Execution MUST be based on operation_plan_id and confirm=true.
+        P0 only supports reversible operations such as quarantine or local
+        metadata-only ignore. Permanent deletion is not part of this contract.
+      operationId: executeOperation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationExecuteRequest"
+      responses:
+        "200":
+          description: Operation receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationReceipt"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /operations:
+    get:
+      tags: [operations]
+      summary: List operation receipts
+      operationId: listOperations
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OperationStatus"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Operation receipts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OperationReceipt"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /operations/{operation_id}:
+    get:
+      tags: [operations]
+      summary: Get operation receipt detail
+      operationId: getOperation
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+      responses:
+        "200":
+          description: Operation receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationReceipt"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /operations/{operation_id}/undo:
+    post:
+      tags: [operations]
+      summary: Undo a reversible operation
+      operationId: undoOperation
+      parameters:
+        - $ref: "#/components/parameters/OperationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationUndoRequest"
+      responses:
+        "200":
+          description: Updated operation receipt after undo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationReceipt"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /quarantine:
+    get:
+      tags: [quarantine]
+      summary: List quarantine items
+      operationId: listQuarantineItems
+      parameters:
+        - name: operation_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/QuarantineStatus"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Quarantine items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QuarantineItem"
+                  page:
+                    $ref: "#/components/schemas/PageInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /providers:
+    get:
+      tags: [providers]
+      summary: List provider capabilities
+      description: >
+        P0 providers are local-only. Any mock provider listed here MUST NOT
+        imply real upload or cloud processing capability.
+      operationId: listProviders
+      responses:
+        "200":
+          description: Provider capabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProviderInfo"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /providers/mock/analyze:
+    post:
+      tags: [providers]
+      summary: Run local mock analysis
+      description: >
+        Stub endpoint for frontend integration tests. It accepts asset IDs or
+        aggregate stats and returns mock analysis. It MUST NOT upload files,
+        read remote services, or represent real cloud enhancement capability.
+      operationId: runMockProviderAnalyze
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MockAnalyzeRequest"
+      responses:
+        "200":
+          description: Mock provider analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockAnalyzeResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/scans:
+    post:
+      tags: [inventory]
+      summary: Run the fixed metadata-only inventory fixture
+      operationId: createInventoryScan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryScanCreateRequest"
+      responses:
+        "201":
+          description: Completed or partial fixture inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryScanResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/scans/{scan_id}:
+    get:
+      tags: [inventory]
+      summary: Get fixture inventory status
+      operationId: getInventoryScan
+      parameters:
+        - $ref: "#/components/parameters/InventoryScanId"
+      responses:
+        "200":
+          description: Fixture inventory status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryScanResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/snapshots:
+    post:
+      tags: [inventory]
+      summary: Materialize the persisted inventory snapshot
+      operationId: createInventorySnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventorySnapshotCreateRequest"
+      responses:
+        "201":
+          description: Canonical report snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSnapshotV1"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/snapshots/{snapshot_id}:
+    get:
+      tags: [inventory]
+      summary: Get a persisted report snapshot
+      operationId: getInventorySnapshot
+      parameters:
+        - $ref: "#/components/parameters/InventorySnapshotId"
+      responses:
+        "200":
+          description: Canonical report snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSnapshotV1"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/analysis-packets/preview:
+    post:
+      tags: [inventory]
+      summary: Preview and persist a local analysis packet
+      operationId: previewInventoryAnalysisPacket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryPacketPreviewRequest"
+      responses:
+        "200":
+          description: Analysis packet preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryPacketPreviewResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/analyses:
+    post:
+      tags: [inventory]
+      summary: Run none or fake analysis for a persisted packet
+      operationId: createInventoryAnalysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAnalysisCreateRequest"
+      responses:
+        "201":
+          description: Analysis and zero-network model-call receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryAnalysisResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/analyses/{analysis_id}:
+    get:
+      tags: [inventory]
+      summary: Get a persisted analysis and receipt
+      operationId: getInventoryAnalysis
+      parameters:
+        - $ref: "#/components/parameters/InventoryAnalysisId"
+      responses:
+        "200":
+          description: Persisted analysis and receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryAnalysisResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/reports:
+    post:
+      tags: [inventory]
+      summary: Render and persist a verified five-sheet XLSX report
+      operationId: createInventoryReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryReportCreateRequest"
+      responses:
+        "201":
+          description: Verified report manifest and download URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryReportResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/reports/{report_id}:
+    get:
+      tags: [inventory]
+      summary: Get a persisted report manifest
+      operationId: getInventoryReport
+      parameters:
+        - $ref: "#/components/parameters/InventoryReportId"
+      responses:
+        "200":
+          description: Persisted report manifest and download URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryReportResponse"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /v1/inventory/reports/{report_id}/download:
+    get:
+      tags: [inventory]
+      summary: Download a verified XLSX report by report ID
+      operationId: downloadInventoryReport
+      parameters:
+        - $ref: "#/components/parameters/InventoryReportId"
+      responses:
+        "200":
+          description: Verified XLSX attachment
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Error"
+
+components:
+  parameters:
+    ScanSessionId:
+      name: scan_session_id
+      in: path
+      required: true
+      schema:
+        type: string
+    ScanSessionIdQuery:
+      name: scan_session_id
+      in: query
+      required: false
+      schema:
+        type: string
+    AssetId:
+      name: asset_id
+      in: path
+      required: true
+      schema:
+        type: string
+    OperationId:
+      name: operation_id
+      in: path
+      required: true
+      schema:
+        type: string
+    InventoryScanId:
+      name: scan_id
+      in: path
+      required: true
+      schema:
+        type: string
+    InventorySnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+    InventoryAnalysisId:
+      name: analysis_id
+      in: path
+      required: true
+      schema:
+        type: string
+    InventoryReportId:
+      name: report_id
+      in: path
+      required: true
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, version, db_status, capabilities, current_time]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        db_status:
+          type: string
+          enum: [ok, unavailable, migration_required]
+        capabilities:
+          type: object
+          required:
+            - real_upload_enabled
+            - mock_provider_enabled
+            - file_upload_enabled
+            - cloud_metadata_analysis_available
+            - cloud_metadata_analysis_enabled
+            - controlled_synthetic_consent_available
+          properties:
+            real_upload_enabled:
+              type: boolean
+              enum: [false]
+              description: P0 MUST always return false.
+            mock_provider_enabled:
+              type: boolean
+            file_upload_enabled:
+              type: boolean
+              enum: [false]
+            cloud_metadata_analysis_available:
+              type: boolean
+              enum: [false]
+            cloud_metadata_analysis_enabled:
+              type: boolean
+              enum: [false]
+            controlled_synthetic_consent_available:
+              type: boolean
+              enum: [true]
+        current_time:
+          type: string
+          format: date-time
+
+    ScanRequest:
+      type: object
+      required: [paths]
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          description: User-authorized local directories. Paths are only scan scope, not operation authority.
+        options:
+          type: object
+          properties:
+            include_hidden:
+              type: boolean
+              default: false
+            follow_symlinks:
+              type: boolean
+              enum: [false]
+              default: false
+              description: P0 never follows symbolic links or junctions.
+            compute_hash:
+              type: boolean
+              default: true
+            source_hint_override:
+              $ref: "#/components/schemas/SourceHint"
+
+    ScanSession:
+      type: object
+      required:
+        - id
+        - status
+        - requested_paths
+        - started_at
+        - files_seen
+        - files_indexed
+        - files_skipped
+        - bytes_seen
+      properties:
+        id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ScanStatus"
+        requested_paths:
+          type: array
+          items:
+            type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        current_path:
+          type: string
+          nullable: true
+        files_seen:
+          type: integer
+          format: int64
+          minimum: 0
+        files_indexed:
+          type: integer
+          format: int64
+          minimum: 0
+        files_skipped:
+          type: integer
+          format: int64
+          minimum: 0
+        bytes_seen:
+          type: integer
+          format: int64
+          minimum: 0
+        error_summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/ErrorSummaryItem"
+
+    ScanEvent:
+      type: object
+      required: [event_id, scan_session_id, type, occurred_at]
+      properties:
+        event_id:
+          type: string
+        scan_session_id:
+          type: string
+        type:
+          type: string
+          enum: [started, progress, skipped, completed, cancelled, failed]
+        occurred_at:
+          type: string
+          format: date-time
+        current_path:
+          type: string
+          nullable: true
+        files_seen:
+          type: integer
+          format: int64
+          minimum: 0
+        files_indexed:
+          type: integer
+          format: int64
+          minimum: 0
+        files_skipped:
+          type: integer
+          format: int64
+          minimum: 0
+        bytes_seen:
+          type: integer
+          format: int64
+          minimum: 0
+        message:
+          type: string
+          nullable: true
+        error:
+          $ref: "#/components/schemas/ErrorResponse"
+
+    Asset:
+      type: object
+      required:
+        - id
+        - abs_path
+        - size_bytes
+        - ext
+        - category
+        - source_hint
+        - status
+        - scan_session_id
+      properties:
+        id:
+          type: string
+        abs_path:
+          type: string
+          description: Display-only source path. Frontend MUST NOT use this as action authority.
+        path_hash:
+          type: string
+          nullable: true
+        file_hash:
+          type: string
+          nullable: true
+        partial_hash:
+          type: string
+          nullable: true
+        hash_status:
+          type: string
+          enum: [not_started, partial, full, failed]
+          default: not_started
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        ext:
+          type: string
+        mime:
+          type: string
+          nullable: true
+        category:
+          $ref: "#/components/schemas/AssetCategory"
+        source_hint:
+          $ref: "#/components/schemas/SourceHint"
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        modified_at:
+          type: string
+          format: date-time
+          nullable: true
+        accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/AssetStatus"
+        scan_session_id:
+          type: string
+        risk_flags:
+          type: array
+          items:
+            type: string
+
+    AssetMetadata:
+      type: object
+      required: [asset_id, key, value]
+      properties:
+        asset_id:
+          type: string
+        key:
+          type: string
+        value:
+          type: string
+        raw_json:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    FileIntelOverview:
+      type: object
+      required:
+        - scan_session_id
+        - total_files
+        - total_size_bytes
+        - by_category
+        - by_source
+        - top_large_files
+        - risk_summary
+        - generated_at
+      properties:
+        scan_session_id:
+          type: string
+        total_files:
+          type: integer
+          format: int64
+          minimum: 0
+        total_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        by_category:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewBucket"
+        by_source:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewBucket"
+        by_directory:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverviewBucket"
+        top_large_files:
+          type: array
+          items:
+            $ref: "#/components/schemas/Asset"
+        risk_summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskSummaryBucket"
+        generated_at:
+          type: string
+          format: date-time
+
+    DuplicateGroup:
+      type: object
+      required:
+        - id
+        - kind
+        - member_count
+        - total_size_bytes
+        - reclaimable_size_bytes
+        - keep_asset_id
+        - reason
+        - members
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [exact]
+          description: P0 supports exact duplicates only.
+        file_hash:
+          type: string
+          nullable: true
+        member_count:
+          type: integer
+          minimum: 2
+        total_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        reclaimable_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        keep_asset_id:
+          type: string
+        reason:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateMember"
+
+    DuplicateMember:
+      type: object
+      required: [asset_id, role, similarity]
+      properties:
+        asset_id:
+          type: string
+        role:
+          type: string
+          enum: [keep_recommended, duplicate_candidate, protected]
+        similarity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        reason:
+          type: string
+          nullable: true
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+
+    Suggestion:
+      type: object
+      required:
+        - id
+        - category
+        - risk_level
+        - proposed_action
+        - reason
+        - evidence
+        - reversible
+        - default_selected
+        - status
+      properties:
+        id:
+          type: string
+        asset_id:
+          type: string
+          nullable: true
+        dup_group_id:
+          type: string
+          nullable: true
+        category:
+          $ref: "#/components/schemas/SuggestionCategory"
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+        proposed_action:
+          $ref: "#/components/schemas/ProposedAction"
+        reason:
+          type: string
+        evidence:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/EvidenceItem"
+        reversible:
+          type: boolean
+        default_selected:
+          type: boolean
+          description: High-risk suggestions MUST be false.
+        status:
+          type: string
+          enum: [active, ignored, accepted]
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    OperationPreviewRequest:
+      type: object
+      required: [action_type]
+      properties:
+        action_type:
+          $ref: "#/components/schemas/OperationAction"
+        asset_ids:
+          type: array
+          items:
+            type: string
+          description: Asset IDs selected by the user. Paths are not accepted as operation authority.
+        suggestion_ids:
+          type: array
+          items:
+            type: string
+        target_policy:
+          type: string
+          enum: [app_quarantine, metadata_only]
+          default: app_quarantine
+      anyOf:
+        - required: [asset_ids]
+        - required: [suggestion_ids]
+
+    OperationPlan:
+      type: object
+      required:
+        - id
+        - action_type
+        - status
+        - reversible
+        - summary
+        - risk_summary
+        - items
+        - warnings
+        - version
+        - created_at
+        - expires_at
+      properties:
+        id:
+          type: string
+        action_type:
+          $ref: "#/components/schemas/OperationAction"
+        status:
+          type: string
+          enum: [previewed, expired, cancelled, executed]
+        reversible:
+          type: boolean
+          enum: [true]
+          description: P0 operation plans MUST be reversible.
+        summary:
+          $ref: "#/components/schemas/OperationSummary"
+        risk_summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskSummaryBucket"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationPlanItem"
+        warnings:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+          description: SHA-256 of the canonical plan snapshot returned to the client for confirmation.
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    OperationExecuteRequest:
+      type: object
+      required: [operation_plan_id, confirm, client_seen_plan_version]
+      properties:
+        operation_plan_id:
+          type: string
+        confirm:
+          type: boolean
+          enum: [true]
+          description: Must be true; false or missing MUST be rejected.
+        client_seen_plan_version:
+          type: string
+        idempotency_key:
+          type: string
+          nullable: true
+
+    OperationReceipt:
+      type: object
+      required:
+        - id
+        - operation_plan_id
+        - action_type
+        - status
+        - reversible
+        - file_count
+        - total_size_bytes
+        - started_at
+        - file_results
+      properties:
+        id:
+          type: string
+        operation_plan_id:
+          type: string
+        action_type:
+          $ref: "#/components/schemas/OperationAction"
+        status:
+          $ref: "#/components/schemas/OperationStatus"
+        reversible:
+          type: boolean
+          enum: [true]
+        file_count:
+          type: integer
+          format: int64
+          minimum: 0
+        total_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        affects_cloud_sync:
+          type: boolean
+          default: false
+        rule_version:
+          type: string
+          nullable: true
+        provider_version:
+          type: string
+          nullable: true
+        file_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationFileResult"
+
+    QuarantineItem:
+      type: object
+      required:
+        - id
+        - operation_id
+        - asset_id
+        - original_path
+        - quarantine_path
+        - original_size_bytes
+        - file_hash
+        - status
+      properties:
+        id:
+          type: string
+        operation_id:
+          type: string
+        asset_id:
+          type: string
+        original_path:
+          type: string
+        quarantine_path:
+          type: string
+        original_mtime:
+          type: string
+          format: date-time
+          nullable: true
+        original_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        file_hash:
+          type: string
+        status:
+          $ref: "#/components/schemas/QuarantineStatus"
+        error_message:
+          type: string
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+        request_id:
+          type: string
+          nullable: true
+
+    OperationUndoRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: boolean
+          enum: [true]
+        conflict_policy:
+          type: string
+          enum: [fail_on_conflict]
+          default: fail_on_conflict
+
+    ProviderInfo:
+      type: object
+      required:
+        - name
+        - kind
+        - runs_locally
+        - requires_upload
+        - enabled
+        - is_stub
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [rules, mock]
+        runs_locally:
+          type: boolean
+          enum: [true]
+        requires_upload:
+          type: boolean
+          enum: [false]
+        enabled:
+          type: boolean
+        is_stub:
+          type: boolean
+        capabilities:
+          type: array
+          items:
+            type: string
+
+    MockAnalyzeRequest:
+      type: object
+      properties:
+        scan_session_id:
+          type: string
+          nullable: true
+        asset_ids:
+          type: array
+          items:
+            type: string
+        prompt:
+          type: string
+          nullable: true
+      description: Mock-only request. Must not contain file bytes or upload handles.
+
+    MockAnalyzeResponse:
+      type: object
+      required: [provider, is_mock, summary, generated_at]
+      properties:
+        provider:
+          type: string
+          enum: [mock]
+        is_mock:
+          type: boolean
+          enum: [true]
+        summary:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    PageInfo:
+      type: object
+      required: [page, page_size, total]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+
+    OverviewBucket:
+      type: object
+      required: [key, file_count, size_bytes]
+      properties:
+        key:
+          type: string
+        file_count:
+          type: integer
+          format: int64
+          minimum: 0
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+
+    RiskSummaryBucket:
+      type: object
+      required: [risk_level, file_count, size_bytes]
+      properties:
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+        file_count:
+          type: integer
+          format: int64
+          minimum: 0
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+
+    EvidenceItem:
+      type: object
+      required: [type, label, value]
+      properties:
+        type:
+          type: string
+          enum: [path, size, time, duplicate, source, category, risk_keyword, rule]
+        label:
+          type: string
+        value:
+          type: string
+
+    OperationSummary:
+      type: object
+      required: [file_count, total_size_bytes]
+      properties:
+        file_count:
+          type: integer
+          format: int64
+          minimum: 0
+        total_size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        target_policy:
+          type: string
+
+    OperationPlanItem:
+      type: object
+      required: [asset_id, display_path, size_bytes, risk_level, reversible]
+      properties:
+        asset_id:
+          type: string
+        suggestion_id:
+          type: string
+          nullable: true
+        display_path:
+          type: string
+          description: Display-only path, not executable authority.
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 0
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+        reversible:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+
+    OperationFileResult:
+      type: object
+      required: [asset_id, status]
+      properties:
+        asset_id:
+          type: string
+        status:
+          type: string
+          enum: [succeeded, failed, skipped]
+        original_path:
+          type: string
+          nullable: true
+        quarantine_item_id:
+          type: string
+          nullable: true
+        error:
+          $ref: "#/components/schemas/ErrorResponse"
+
+    ErrorSummaryItem:
+      type: object
+      required: [code, count]
+      properties:
+        code:
+          type: string
+        count:
+          type: integer
+          format: int64
+          minimum: 0
+
+    InventoryScanCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [fixture_id, profile]
+      properties:
+        fixture_id:
+          type: string
+          enum: [standard]
+        profile:
+          type: string
+          enum: [inventory_metadata]
+        compute_hash:
+          type: boolean
+          enum: [false]
+          default: false
+
+    InventorySafetyCounters:
+      type: object
+      additionalProperties: false
+      required:
+        - product_content_reads
+        - product_file_hashes
+        - network_calls
+        - file_actions
+      properties:
+        product_content_reads:
+          type: integer
+          enum: [0]
+        product_file_hashes:
+          type: integer
+          enum: [0]
+        network_calls:
+          type: integer
+          enum: [0]
+        file_actions:
+          type: integer
+          enum: [0]
+
+    InventoryCoverageV1:
+      type: object
+      additionalProperties: false
+      required:
+        - requested_entries
+        - collected_entries
+        - skipped_entries
+        - permission_gaps
+        - cancelled
+      properties:
+        requested_entries:
+          type: integer
+          minimum: 0
+        collected_entries:
+          type: integer
+          minimum: 0
+        skipped_entries:
+          type: integer
+          minimum: 0
+        permission_gaps:
+          type: array
+          items:
+            type: string
+        cancelled:
+          type: boolean
+
+    InventoryCheckpoint:
+      type: object
+      additionalProperties: false
+      required:
+        - checkpoint_id
+        - scan_id
+        - status
+        - last_relative_path
+        - collected_entries
+        - skipped_entries
+        - updated_at
+      properties:
+        checkpoint_id:
+          type: string
+        scan_id:
+          type: string
+        status:
+          type: string
+          enum: [running, completed, cancelled, partial, failed]
+        last_relative_path:
+          type: string
+          nullable: true
+        collected_entries:
+          type: integer
+          minimum: 0
+        skipped_entries:
+          type: integer
+          minimum: 0
+        updated_at:
+          type: string
+          format: date-time
+
+    InventoryScanResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - scan_id
+        - status
+        - fixture_id
+        - profile
+        - platform
+        - content_read
+        - hash_mode
+        - coverage
+        - checkpoint
+        - snapshot_id
+        - safety
+      properties:
+        scan_id:
+          type: string
+        status:
+          type: string
+          enum: [completed, partial, failed]
+        fixture_id:
+          type: string
+          enum: [standard]
+        profile:
+          type: string
+          enum: [inventory_metadata]
+        platform:
+          type: string
+        content_read:
+          type: boolean
+          enum: [false]
+        hash_mode:
+          type: string
+          enum: [none]
+        coverage:
+          $ref: "#/components/schemas/InventoryCoverageV1"
+        checkpoint:
+          $ref: "#/components/schemas/InventoryCheckpoint"
+        snapshot_id:
+          type: string
+        safety:
+          $ref: "#/components/schemas/InventorySafetyCounters"
+
+    InventorySnapshotCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [scan_id]
+      properties:
+        scan_id:
+          type: string
+
+    ReportSnapshotV1:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - snapshot_id
+        - snapshot_sha256
+        - scan_id
+        - generated_at
+        - profile
+        - platform
+        - rules_version
+        - content_read
+        - hash_mode
+        - canonical_tree_logical_size_bytes
+        - canonical_tree_allocated_size_bytes
+        - reclaimable_estimate_bytes
+        - coverage
+        - limitations
+        - objects
+        - evidence
+      properties:
+        schema_version:
+          type: string
+          enum: ["1.0"]
+        snapshot_id:
+          type: string
+        snapshot_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        scan_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        profile:
+          type: string
+          enum: [inventory_metadata]
+        platform:
+          type: string
+        rules_version:
+          type: string
+        content_read:
+          type: boolean
+          enum: [false]
+        hash_mode:
+          type: string
+          enum: [none]
+        canonical_tree_logical_size_bytes:
+          type: integer
+          minimum: 0
+        canonical_tree_allocated_size_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        reclaimable_estimate_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        coverage:
+          $ref: "#/components/schemas/InventoryCoverageV1"
+        limitations:
+          type: array
+          items:
+            type: string
+        objects:
+          type: array
+          items:
+            type: object
+        evidence:
+          type: array
+          items:
+            type: object
+
+    AnalysisBudgetV1:
+      type: object
+      additionalProperties: false
+      required:
+        - max_provider_calls
+        - max_schema_retries
+        - max_input_tokens
+        - max_output_tokens
+        - max_packet_bytes
+        - timeout_ms
+        - max_estimated_cost
+      properties:
+        max_provider_calls:
+          type: integer
+          enum: [1]
+          default: 1
+          description: Primary provider calls only; schema retries are budgeted separately.
+        max_schema_retries:
+          type: integer
+          minimum: 0
+          maximum: 1
+          default: 1
+          description: Additional schema-repair attempts; total attempts are at most two.
+        max_input_tokens:
+          type: integer
+          minimum: 1
+          maximum: 12000
+          default: 12000
+        max_output_tokens:
+          type: integer
+          minimum: 1
+          maximum: 2500
+          default: 2500
+        max_packet_bytes:
+          type: integer
+          minimum: 1
+          maximum: 256000
+          default: 256000
+        timeout_ms:
+          type: integer
+          minimum: 1
+          maximum: 90000
+          default: 90000
+          description: Cooperative wall-clock deadline enforced by the offline fake provider; not evidence of a real-provider hard timeout.
+        max_estimated_cost:
+          type: number
+          enum: [0]
+          default: 0
+
+    AnalysisOfferV1:
+      type: object
+      additionalProperties: false
+      required:
+        - snapshot_id
+        - snapshot_sha256
+        - packet_id
+        - packet_sha256
+        - packet_bytes
+        - estimated_input_tokens
+        - estimated_output_tokens
+        - included_field_categories
+        - excluded_field_categories
+        - budget
+        - disclosure
+      properties:
+        synthetic:
+          type: boolean
+          enum: [true]
+          default: true
+        consent_required:
+          type: boolean
+          enum: [true]
+          default: true
+        network_calls:
+          type: integer
+          enum: [0]
+          default: 0
+        provider:
+          type: string
+          enum: [fake]
+          default: fake
+        model:
+          type: string
+          enum: [fixture-analyst-v1]
+          default: fixture-analyst-v1
+        prompt_version:
+          type: string
+          enum: [report-analysis-v1]
+          default: report-analysis-v1
+        consent_schema_version:
+          type: string
+          enum: ["1.0"]
+          default: "1.0"
+        analysis_schema_version:
+          type: string
+          enum: [ai-analysis-v1]
+          default: ai-analysis-v1
+        disclosure_version:
+          type: string
+          enum: [synthetic-disclosure-v1]
+          default: synthetic-disclosure-v1
+        snapshot_id:
+          type: string
+        snapshot_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_id:
+          type: string
+        packet_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_bytes:
+          type: integer
+          minimum: 1
+        estimated_input_tokens:
+          type: integer
+          minimum: 1
+        estimated_output_tokens:
+          type: integer
+          minimum: 1
+        included_field_categories:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        excluded_field_categories:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        budget:
+          $ref: "#/components/schemas/AnalysisBudgetV1"
+        cost_basis:
+          type: string
+          enum: [synthetic_zero_external_cost]
+          default: synthetic_zero_external_cost
+        disclosure:
+          type: string
+
+    AnalysisConsentV1:
+      type: object
+      additionalProperties: false
+      required:
+        - consent_receipt_id
+        - client_action_id
+        - confirmed
+        - snapshot_id
+        - snapshot_sha256
+        - packet_id
+        - packet_sha256
+        - packet_bytes
+        - artifact_privacy_mode
+        - analysis_execution_mode
+        - provider
+        - model
+        - prompt_version
+        - consent_schema_version
+        - analysis_schema_version
+        - disclosure_version
+        - budget
+        - cost_basis
+      properties:
+        consent_receipt_id:
+          type: string
+          pattern: "^consent_receipt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        client_action_id:
+          type: string
+          pattern: "^client_action_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        confirmed:
+          type: boolean
+          enum: [true]
+        snapshot_id:
+          type: string
+        snapshot_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_id:
+          type: string
+        packet_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_bytes:
+          type: integer
+          minimum: 1
+        artifact_privacy_mode:
+          type: string
+          enum: [share_safe]
+        analysis_execution_mode:
+          type: string
+          enum: [cloud_metadata_minimized]
+        provider:
+          type: string
+          enum: [fake]
+        model:
+          type: string
+          enum: [fixture-analyst-v1]
+        prompt_version:
+          type: string
+          enum: [report-analysis-v1]
+        consent_schema_version:
+          type: string
+          enum: ["1.0"]
+        analysis_schema_version:
+          type: string
+          enum: [ai-analysis-v1]
+        disclosure_version:
+          type: string
+          enum: [synthetic-disclosure-v1]
+        budget:
+          $ref: "#/components/schemas/AnalysisBudgetV1"
+        cost_basis:
+          type: string
+          enum: [synthetic_zero_external_cost]
+
+    AnalysisConsentReceiptV1:
+      type: object
+      additionalProperties: false
+      required:
+        - consent_receipt_id
+        - client_action_id
+        - confirmed
+        - snapshot_id
+        - snapshot_sha256
+        - packet_id
+        - packet_sha256
+        - packet_bytes
+        - artifact_privacy_mode
+        - analysis_execution_mode
+        - provider
+        - model
+        - prompt_version
+        - consent_schema_version
+        - analysis_schema_version
+        - disclosure_version
+        - budget
+        - cost_basis
+        - status
+        - synthetic
+        - provider_calls
+        - network_calls
+        - input_tokens
+        - cached_input_tokens
+        - output_tokens
+        - estimated_cost
+        - latency_ms
+        - fallback
+        - created_at
+        - consumed_at
+      properties:
+        consent_receipt_id:
+          type: string
+          pattern: "^consent_receipt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        client_action_id:
+          type: string
+          pattern: "^client_action_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        confirmed:
+          type: boolean
+          enum: [true]
+        snapshot_id:
+          type: string
+        snapshot_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_id:
+          type: string
+        packet_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        packet_bytes:
+          type: integer
+          minimum: 1
+        artifact_privacy_mode:
+          type: string
+          enum: [share_safe]
+        analysis_execution_mode:
+          type: string
+          enum: [cloud_metadata_minimized]
+        provider:
+          type: string
+          enum: [fake]
+        model:
+          type: string
+          enum: [fixture-analyst-v1]
+        prompt_version:
+          type: string
+          enum: [report-analysis-v1]
+        consent_schema_version:
+          type: string
+          enum: ["1.0"]
+        analysis_schema_version:
+          type: string
+          enum: [ai-analysis-v1]
+        disclosure_version:
+          type: string
+          enum: [synthetic-disclosure-v1]
+        budget:
+          $ref: "#/components/schemas/AnalysisBudgetV1"
+        cost_basis:
+          type: string
+          enum: [synthetic_zero_external_cost]
+        status:
+          type: string
+          enum: [consumed]
+        synthetic:
+          type: boolean
+          enum: [true]
+          default: true
+        provider_calls:
+          type: integer
+          minimum: 0
+        network_calls:
+          type: integer
+          enum: [0]
+          default: 0
+        input_tokens:
+          type: integer
+          minimum: 0
+        cached_input_tokens:
+          type: integer
+          minimum: 0
+        output_tokens:
+          type: integer
+          minimum: 0
+        estimated_cost:
+          type: number
+          enum: [0]
+          default: 0
+        latency_ms:
+          type: integer
+          minimum: 0
+        fallback:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        consumed_at:
+          type: string
+          format: date-time
+        error_code:
+          type: string
+          nullable: true
+
+    InventoryPacketPreviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - snapshot_id
+        - artifact_privacy_mode
+        - analysis_execution_mode
+      properties:
+        snapshot_id:
+          type: string
+        artifact_privacy_mode:
+          type: string
+          enum: [local_full, share_safe]
+        analysis_execution_mode:
+          type: string
+          enum: [none, local_only, cloud_metadata_minimized]
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 200
+        budget:
+          allOf:
+            - $ref: "#/components/schemas/AnalysisBudgetV1"
+          nullable: true
+
+    AnalysisPacketV1:
+      type: object
+      additionalProperties: false
+      required:
+        - packet_id
+        - packet_sha256
+        - snapshot_id
+        - snapshot_sha256
+        - generated_at
+        - artifact_privacy_mode
+        - analysis_execution_mode
+        - platform
+        - canonical_tree_logical_size_bytes
+        - coverage_summary
+        - limitations
+        - top_objects
+        - long_tail
+        - truncated
+      properties:
+        schema_version:
+          type: string
+          enum: ["1.0"]
+          default: "1.0"
+        packet_id:
+          type: string
+        packet_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        snapshot_id:
+          type: string
+        snapshot_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        generated_at:
+          type: string
+          format: date-time
+        artifact_privacy_mode:
+          type: string
+          enum: [local_full, share_safe]
+        analysis_execution_mode:
+          type: string
+          enum: [none, local_only, cloud_metadata_minimized]
+        profile:
+          type: string
+          enum: [inventory_metadata]
+          default: inventory_metadata
+        platform:
+          type: string
+        content_read:
+          type: boolean
+          enum: [false]
+          default: false
+        hash_mode:
+          type: string
+          enum: [none]
+          default: none
+        canonical_tree_logical_size_bytes:
+          type: integer
+          minimum: 0
+        canonical_tree_allocated_size_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        reclaimable_estimate_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        coverage_summary:
+          $ref: "#/components/schemas/CoverageSummaryV1"
+        limitations:
+          type: array
+          items:
+            type: string
+        top_objects:
+          type: array
+          items:
+            $ref: "#/components/schemas/PacketObjectV1"
+        long_tail:
+          $ref: "#/components/schemas/LongTailV1"
+        truncated:
+          type: boolean
+
+    CoverageSummaryV1:
+      type: object
+      additionalProperties: false
+      required:
+        - requested_entries
+        - collected_entries
+        - skipped_entries
+        - permission_gap_count
+        - cancelled
+      properties:
+        requested_entries:
+          type: integer
+          minimum: 0
+        collected_entries:
+          type: integer
+          minimum: 0
+        skipped_entries:
+          type: integer
+          minimum: 0
+        permission_gap_count:
+          type: integer
+          minimum: 0
+        cancelled:
+          type: boolean
+
+    PacketObjectV1:
+      type: object
+      additionalProperties: false
+      required:
+        - object_id
+        - evidence_ids
+        - object_type
+        - display_name
+        - location
+        - name_length
+        - logical_size_bytes
+        - rule_hints
+      properties:
+        object_id:
+          type: string
+        evidence_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        object_type:
+          type: string
+        display_name:
+          type: string
+        location:
+          type: string
+          nullable: true
+        name_length:
+          type: integer
+          minimum: 0
+        logical_size_bytes:
+          type: integer
+          minimum: 0
+        allocated_size_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        reclaimable_estimate_bytes:
+          type: integer
+          minimum: 0
+          nullable: true
+        rule_hints:
+          type: array
+          items:
+            type: string
+
+    LongTailV1:
+      type: object
+      additionalProperties: false
+      required: [object_count, logical_size_bytes]
+      properties:
+        object_count:
+          type: integer
+          minimum: 0
+        logical_size_bytes:
+          type: integer
+          minimum: 0
+
+    PrivacyLintResult:
+      type: object
+      additionalProperties: false
+      required: [passed, issue_codes, packet_bytes, max_packet_bytes]
+      properties:
+        passed:
+          type: boolean
+        issue_codes:
+          type: array
+          items:
+            type: string
+        packet_bytes:
+          type: integer
+          minimum: 0
+        max_packet_bytes:
+          type: integer
+          minimum: 1
+
+    InventoryPacketPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [packet, privacy_lint, estimated_input_tokens]
+      properties:
+        packet:
+          $ref: "#/components/schemas/AnalysisPacketV1"
+        privacy_lint:
+          allOf:
+            - $ref: "#/components/schemas/PrivacyLintResult"
+          nullable: true
+        estimated_input_tokens:
+          type: integer
+          minimum: 1
+        analysis_offer:
+          allOf:
+            - $ref: "#/components/schemas/AnalysisOfferV1"
+          nullable: true
+
+    InventoryAnalysisCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [packet_id, provider]
+      properties:
+        packet_id:
+          type: string
+        provider:
+          type: string
+          enum: [none, fake]
+        consent:
+          allOf:
+            - $ref: "#/components/schemas/AnalysisConsentV1"
+          nullable: true
+
+    AIAnalysisV1:
+      type: object
+      required:
+        - schema_version
+        - analysis_id
+        - packet_id
+        - status
+        - provider
+        - model
+        - summary
+        - findings
+        - questions
+        - limitations
+      properties:
+        schema_version:
+          type: string
+          enum: ["1.0"]
+        analysis_id:
+          type: string
+        packet_id:
+          type: string
+        status:
+          type: string
+          enum: [deterministic_only, ai_complete, ai_failed_fallback]
+        provider:
+          type: string
+          enum: [none, fake]
+        model:
+          type: string
+        summary:
+          type: string
+        findings:
+          type: array
+          items:
+            type: object
+        questions:
+          type: array
+          items:
+            type: string
+        limitations:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+
+    ModelCallReceiptV1:
+      type: object
+      required:
+        - receipt_id
+        - packet_sha256
+        - provider
+        - model
+        - prompt_version
+        - schema_version
+        - cache_key
+        - status
+        - provider_calls
+        - network_calls
+        - input_tokens
+        - cached_input_tokens
+        - output_tokens
+        - estimated_cost
+        - latency_ms
+      properties:
+        receipt_id:
+          type: string
+        packet_sha256:
+          type: string
+        provider:
+          type: string
+          enum: [none, fake]
+        model:
+          type: string
+        prompt_version:
+          type: string
+        schema_version:
+          type: string
+        cache_key:
+          type: string
+        status:
+          type: string
+          enum:
+            - not_called
+            - succeeded
+            - cache_hit
+            - privacy_blocked
+            - budget_blocked
+            - grounding_failed
+            - schema_failed
+            - provider_failed
+        provider_calls:
+          type: integer
+          minimum: 0
+        network_calls:
+          type: integer
+          enum: [0]
+        synthetic:
+          type: boolean
+          default: false
+        input_tokens:
+          type: integer
+          minimum: 0
+        cached_input_tokens:
+          type: integer
+          minimum: 0
+        output_tokens:
+          type: integer
+          minimum: 0
+        estimated_cost:
+          type: number
+          minimum: 0
+        latency_ms:
+          type: integer
+          minimum: 0
+        error_code:
+          type: string
+          nullable: true
+        consent_receipt_id:
+          type: string
+          nullable: true
+        client_action_id:
+          type: string
+          nullable: true
+        consent_status:
+          type: string
+          enum: [not_required, consumed]
+          default: not_required
+        budget:
+          allOf:
+            - $ref: "#/components/schemas/AnalysisBudgetV1"
+          nullable: true
+        cost_basis:
+          type: string
+          enum: [synthetic_zero_external_cost]
+          nullable: true
+        fallback:
+          type: boolean
+          default: false
+      additionalProperties: false
+
+    InventoryAnalysisResponse:
+      type: object
+      additionalProperties: false
+      required: [analysis, receipt]
+      properties:
+        analysis:
+          $ref: "#/components/schemas/AIAnalysisV1"
+        receipt:
+          $ref: "#/components/schemas/ModelCallReceiptV1"
+        consent_receipt:
+          allOf:
+            - $ref: "#/components/schemas/AnalysisConsentReceiptV1"
+          nullable: true
+
+    InventoryReportCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, packet_id, analysis_id]
+      properties:
+        snapshot_id:
+          type: string
+        packet_id:
+          type: string
+        analysis_id:
+          type: string
+
+    ReportManifestV1:
+      type: object
+      required:
+        - schema_version
+        - report_schema_version
+        - report_id
+        - artifact_id
+        - snapshot_id
+        - packet_id
+        - analysis_id
+        - generated_at
+        - artifact_privacy_mode
+        - provider
+        - analysis_status
+        - filename
+        - workbook_sha256
+        - sheets
+        - zip_integrity
+        - reopen_validated
+      properties:
+        schema_version:
+          type: string
+          enum: ["1.0"]
+        report_schema_version:
+          type: string
+          enum: ["1.0"]
+        report_id:
+          type: string
+        artifact_id:
+          type: string
+        snapshot_id:
+          type: string
+        packet_id:
+          type: string
+        analysis_id:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        artifact_privacy_mode:
+          type: string
+          enum: [local_full, share_safe]
+        provider:
+          type: string
+          enum: [none, fake]
+        analysis_status:
+          type: string
+          enum: [deterministic_only, ai_complete, ai_failed_fallback]
+        filename:
+          type: string
+        workbook_sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        sheets:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            type: string
+        zip_integrity:
+          type: boolean
+          enum: [true]
+        reopen_validated:
+          type: boolean
+          enum: [true]
+      additionalProperties: false
+
+    InventoryReportResponse:
+      type: object
+      additionalProperties: false
+      required: [report_id, status, manifest, download_url]
+      properties:
+        report_id:
+          type: string
+        status:
+          type: string
+          enum: [deterministic_only, ai_complete, ai_failed_fallback]
+        manifest:
+          $ref: "#/components/schemas/ReportManifestV1"
+        download_url:
+          type: string
+
+    AssetCategory:
+      type: string
+      enum: [photo, video, archive, installer, document, pdf, audio, other]
+
+    SourceHint:
+      type: string
+      enum: [wechat, suspected_wechat, downloads, desktop, documents, pictures, screenshots, manual_folder, unknown]
+
+    AssetStatus:
+      type: string
+      enum: [active, quarantined, missing, ignored]
+
+    ScanStatus:
+      type: string
+      enum: [pending, running, completed, cancelled, failed, partial]
+
+    RiskLevel:
+      type: string
+      enum: [low, medium, high]
+
+    SuggestionCategory:
+      type: string
+      enum: [safe_to_process, archive_suggested, needs_confirmation, sensitive_protected, likely_unique_original]
+
+    ProposedAction:
+      type: string
+      enum: [keep, review, protect, quarantine, archive_suggested]
+      description: Suggested action only. Permanent deletion is intentionally absent.
+
+    OperationAction:
+      type: string
+      enum: [quarantine, mark_ignored]
+      description: Executable P0 actions. Permanent deletion is intentionally absent.
+
+    OperationStatus:
+      type: string
+      enum: [succeeded, partial, failed, undone, undo_partial]
+
+    QuarantineStatus:
+      type: string
+      enum: [quarantined, restored, restore_failed, missing]

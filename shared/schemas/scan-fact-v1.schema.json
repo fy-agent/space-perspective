@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/scan-fact-v1.schema.json",
+  "title": "ScanFactV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "fact_id", "scope_id", "profile", "relative_path",
+    "absolute_path", "name", "parent_relative_path", "file_type", "status",
+    "error_code", "logical_size_bytes", "allocated_size_bytes",
+    "reclaimable_estimate_bytes", "extension", "modified", "created",
+    "accessed", "platform", "content_read", "hash_mode"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "fact_id": {"type": "string", "minLength": 1},
+    "scope_id": {"type": "string", "minLength": 1},
+    "profile": {"const": "inventory_metadata"},
+    "relative_path": {"type": "string"},
+    "absolute_path": {"type": "string"},
+    "name": {"type": "string"},
+    "parent_relative_path": {"type": ["string", "null"]},
+    "file_type": {"enum": ["file", "directory", "symlink", "other"]},
+    "status": {"enum": ["collected", "skipped", "permission_denied", "cancelled"]},
+    "error_code": {"type": ["string", "null"]},
+    "logical_size_bytes": {"type": "integer", "minimum": 0},
+    "allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "extension": {"type": "string"},
+    "modified": {"$ref": "#/$defs/timeEvidence"},
+    "created": {"$ref": "#/$defs/timeEvidence"},
+    "accessed": {"$ref": "#/$defs/timeEvidence"},
+    "platform": {"type": "string"},
+    "content_read": {"const": false},
+    "hash_mode": {"const": "none"}
+  },
+  "$defs": {
+    "timeEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source", "evidence_type", "confidence", "platform", "limitation"],
+      "properties": {
+        "value": {"type": ["string", "null"], "format": "date-time"},
+        "source": {"type": "string"},
+        "evidence_type": {
+          "enum": [
+            "filesystem_birthtime", "filesystem_status_change",
+            "filesystem_modified", "filesystem_access", "unavailable"
+          ]
+        },
+        "confidence": {"enum": ["high", "medium", "low", "unknown"]},
+        "platform": {"type": "string"},
+        "limitation": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

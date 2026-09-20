@@ -1,0 +1,24 @@
+[package]
+name = "space-perspective-desktop"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+default-run = "space-perspective-desktop"
+
+[[bin]]
+name = "metadata-contract-probe"
+path = "src/bin/metadata_contract_probe.rs"
+required-features = ["contract-verifier"]
+
+[build-dependencies]
+cc = "1"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+libc = "0.2"
+
+[features]
+contract-verifier = []
+read-only-downloads = []

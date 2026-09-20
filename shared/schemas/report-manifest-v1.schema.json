@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/report-manifest-v1.schema.json",
+  "title": "ReportManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "report_schema_version", "report_id", "artifact_id",
+    "snapshot_id", "packet_id", "analysis_id", "generated_at",
+    "artifact_privacy_mode", "provider", "analysis_status", "filename",
+    "workbook_sha256", "sheets", "zip_integrity", "reopen_validated"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "report_schema_version": {"const": "1.0"},
+    "report_id": {"type": "string"},
+    "artifact_id": {"type": "string"},
+    "snapshot_id": {"type": "string"},
+    "packet_id": {"type": "string"},
+    "analysis_id": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "artifact_privacy_mode": {"enum": ["local_full", "share_safe"]},
+    "provider": {"enum": ["none", "fake"]},
+    "analysis_status": {"enum": ["deterministic_only", "ai_complete", "ai_failed_fallback"]},
+    "filename": {"type": "string", "pattern": "\\.xlsx$"},
+    "workbook_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sheets": {
+      "const": [
+        "空间体检概览", "空间明细清单", "建议优先查看",
+        "可能重复与安装包", "报告说明与记录"
+      ]
+    },
+    "zip_integrity": {"const": true},
+    "reopen_validated": {"const": true}
+  }
+}

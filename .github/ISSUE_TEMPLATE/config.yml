@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 私密安全报告 / Private security report
+    url: https://github.com/fy-agent/space-perspective/security/advisories/new
+    about: 越权读取、敏感信息泄露与文件安全问题，请勿公开披露。

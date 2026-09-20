@@ -1,0 +1,31 @@
+name: Mac source checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - name: Prepare stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+          cargo fetch --locked --manifest-path desktop/Cargo.toml
+      - name: Test read-only suggestions and scope boundaries
+        run: cargo test --locked --manifest-path desktop/Cargo.toml --features read-only-downloads
+      - name: Check read-only source
+        run: cargo clippy --locked --manifest-path desktop/Cargo.toml --features read-only-downloads --all-targets -- -D warnings
+      - name: Test isolated fixture adapter
+        run: cargo test --locked --manifest-path desktop/Cargo.toml
+      - name: Build and verify the read-only app
+        run: python3 scripts/mac001_build.py --build --read-only-downloads

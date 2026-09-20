@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/governance-object-v1.schema.json",
+  "title": "GovernanceObjectV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "object_id", "object_type", "parent_object_id",
+    "fact_ids", "name", "relative_path", "absolute_path",
+    "logical_size_bytes", "allocated_size_bytes",
+    "reclaimable_estimate_bytes", "created", "modified", "accessed",
+    "rule_hints", "user_decision", "user_note"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "object_id": {"type": "string", "minLength": 1},
+    "object_type": {
+      "enum": [
+        "volume", "directory", "application", "game_library", "cache_group",
+        "package_manager_store", "local_model", "project", "archive",
+        "installer", "file"
+      ]
+    },
+    "parent_object_id": {"type": ["string", "null"]},
+    "fact_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "name": {"type": "string"},
+    "relative_path": {"type": "string"},
+    "absolute_path": {"type": "string"},
+    "logical_size_bytes": {"type": "integer", "minimum": 0},
+    "allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "created": {"$ref": "scan-fact-v1.schema.json#/$defs/timeEvidence"},
+    "modified": {"$ref": "scan-fact-v1.schema.json#/$defs/timeEvidence"},
+    "accessed": {"$ref": "scan-fact-v1.schema.json#/$defs/timeEvidence"},
+    "rule_hints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "rules_version", "message", "priority"],
+        "properties": {
+          "rule_id": {"type": "string"},
+          "rules_version": {"type": "string"},
+          "message": {"type": "string"},
+          "priority": {"enum": ["建议先看", "有空再看", "留意即可"]}
+        }
+      }
+    },
+    "user_decision": {"type": "null"},
+    "user_note": {"type": "null"}
+  }
+}

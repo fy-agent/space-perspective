@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://space-perspective.local/schemas/report-snapshot-v1.schema.json",
+  "title": "ReportSnapshotV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "snapshot_id", "snapshot_sha256", "scan_id",
+    "generated_at", "profile", "platform", "rules_version", "content_read",
+    "hash_mode", "canonical_tree_logical_size_bytes",
+    "canonical_tree_allocated_size_bytes", "reclaimable_estimate_bytes",
+    "coverage", "limitations", "objects", "evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scan_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "profile": {"const": "inventory_metadata"},
+    "platform": {"type": "string"},
+    "rules_version": {"type": "string"},
+    "content_read": {"const": false},
+    "hash_mode": {"const": "none"},
+    "canonical_tree_logical_size_bytes": {"type": "integer", "minimum": 0},
+    "canonical_tree_allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0},
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_entries", "collected_entries", "skipped_entries",
+        "permission_gaps", "cancelled"
+      ],
+      "properties": {
+        "requested_entries": {"type": "integer", "minimum": 0},
+        "collected_entries": {"type": "integer", "minimum": 0},
+        "skipped_entries": {"type": "integer", "minimum": 0},
+        "permission_gaps": {"type": "array", "items": {"type": "string"}},
+        "cancelled": {"type": "boolean"}
+      }
+    },
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "objects": {
+      "type": "array",
+      "items": {"$ref": "governance-object-v1.schema.json"}
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id", "object_id", "fact_ids", "evidence_type",
+          "statement", "confidence", "logical_size_bytes",
+          "allocated_size_bytes", "reclaimable_estimate_bytes"
+        ],
+        "properties": {
+          "evidence_id": {"type": "string"},
+          "object_id": {"type": "string"},
+          "fact_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "evidence_type": {
+            "enum": [
+              "filesystem_metadata", "classification_rule",
+              "possible_duplicate", "permission_gap"
+            ]
+          },
+          "statement": {"type": "string"},
+          "confidence": {"enum": ["high", "medium", "low", "unknown"]},
+          "logical_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+          "allocated_size_bytes": {"type": ["integer", "null"], "minimum": 0},
+          "reclaimable_estimate_bytes": {"type": ["integer", "null"], "minimum": 0}
+        }
+      }
+    }
+  }
+}

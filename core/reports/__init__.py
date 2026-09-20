@@ -1,0 +1,1 @@
+"""Deterministic XLSX report generation."""
