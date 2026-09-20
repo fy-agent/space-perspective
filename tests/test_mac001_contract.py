@@ -8,7 +8,7 @@ ROOT = Path(__file__).parents[1]
 
 
 def test_desktop_risk_vocabulary_matches_existing_core():
-    assert set(json.loads((ROOT / 'desktop/rules/high-risk-keywords.json').read_text())) == HIGH_RISK_KEYWORDS
+    assert set(json.loads((ROOT / 'desktop/rules/high-risk-keywords.json').read_text(encoding='utf-8'))) == HIGH_RISK_KEYWORDS
 
 
 def test_mac_entitlements_have_no_network_or_broad_directory_access():
